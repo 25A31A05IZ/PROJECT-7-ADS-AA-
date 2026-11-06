@@ -1,0 +1,275 @@
+from collections import deque
+
+class CropDiseaseSystem:
+
+    def __init__(self):
+        self.graph = {}
+
+    def add_edge(self, u, v):
+        self.graph.setdefault(u, [])
+        self.graph.setdefault(v, [])
+
+        if v not in self.graph[u]:
+            self.graph[u].append(v)
+            self.graph[v].append(u)
+
+    def bfs(self, start):
+        visited = {start}
+        q = deque([start])
+        result = []
+
+        while q:
+            node = q.popleft()
+            result.append(node)
+
+            for v in self.graph[node]:
+                if v not in visited:
+                    visited.add(v)
+                    q.append(v)
+
+        return result
+
+    def dfs(self, node, visited, result):
+        visited.add(node)
+        result.append(node)
+
+        for v in self.graph[node]:
+            if v not in visited:
+                self.dfs(v, visited, result)
+
+    def connected_components(self):
+        visited = set()
+        zones = []
+
+        for node in self.graph:
+            if node not in visited:
+                component = []
+                q = deque([node])
+                visited.add(node)
+
+                while q:
+                    current = q.popleft()
+                    component.append(current)
+
+                    for v in self.graph[current]:
+                        if v not in visited:
+                            visited.add(v)
+                            q.append(v)
+
+                zones.append(component)
+
+        return zones
+
+    def analyze(self):
+        disc, low, parent = {}, {}, {}
+        ap = set()
+        bcc = []
+        stack = []
+        timer = [0]
+
+        def visit(u):
+            disc[u] = low[u] = timer[0]
+            timer[0] += 1
+            children = 0
+
+            for v in self.graph[u]:
+                if v not in disc:
+                    children += 1
+                    parent[v] = u
+                    stack.append((u, v))
+
+                    visit(v)
+                    low[u] = min(low[u], low[v])
+
+                    if parent[u] is None and children > 1:
+                        ap.add(u)
+
+                    if parent[u] is not None and low[v] >= disc[u]:
+                        ap.add(u)
+
+                    if low[v] >= disc[u]:
+                        comp = set()
+
+                        while stack:
+                            edge = stack.pop()
+                            comp.update(edge)
+
+                            if edge == (u, v):
+                                break
+
+                        bcc.append(sorted(comp))
+
+                elif v != parent[u] and disc[v] < disc[u]:
+                    low[u] = min(low[u], disc[v])
+                    stack.append((u, v))
+
+        for node in self.graph:
+            if node not in disc:
+                parent[node] = None
+                visit(node)
+
+                if stack:
+                    comp = set()
+                    while stack:
+                        comp.update(stack.pop())
+                    bcc.append(sorted(comp))
+
+        return sorted(ap), bcc
+
+    def critical_ranking(self):
+        original = len(self.connected_components())
+        ranking = []
+
+        for farm in self.graph:
+            visited = {farm}
+            count = 0
+
+            for node in self.graph:
+                if node not in visited:
+                    count += 1
+                    q = deque([node])
+                    visited.add(node)
+
+                    while q:
+                        current = q.popleft()
+                        for v in self.graph[current]:
+                            if v not in visited:
+                                visited.add(v)
+                                q.append(v)
+
+            ranking.append((farm, count - original + 1))
+
+        return sorted(ranking, key=lambda x: x[1], reverse=True)
+
+
+# INPUT SECTION
+
+print("\n========== CROP DISEASE DETECTION SYSTEM ==========")
+
+crop = input("Enter Crop Name: ")
+disease = input("Enter Disease Name: ")
+
+confidence = float(input("Enter Confidence Score (%): "))
+
+location = input("Enter Agricultural Location: ")
+
+risk = input("Enter Disease Risk Level (Low/Medium/High): ").strip().capitalize()
+
+n = int(input("\nEnter Number of Farms: "))
+
+system = CropDiseaseSystem()
+
+print("\nEnter Farm Names:")
+farms = []
+
+for i in range(n):
+    farm = input(f"Farm {i+1}: ")
+    farms.append(farm)
+    system.graph[farm] = []
+
+m = int(input("\nEnter Number of Farm Connections: "))
+
+print("\nEnter Connections (Farm1 Farm2):")
+
+for i in range(m):
+    u, v = input(f"Connection {i+1}: ").split()
+    if u not in system.graph or v not in system.graph:
+        print("Invalid farm name. Try again.")
+        continue
+    system.add_edge(u, v)
+
+# ANALYSIS
+
+zones = system.connected_components()
+
+critical, bcc = system.analyze()
+
+print("\n\n" + "=" * 55)
+print("          AI CROP DISEASE DETECTION SYSTEM")
+print("=" * 55)
+
+print("\nCrop Name:", crop)
+
+print("\nImage Analysis:")
+print("Disease Detected:", disease)
+print("Confidence Score:", str(confidence) + "%")
+
+print("\nLocation:", location)
+print("Disease Risk Level:", risk)
+print("Zone Classification:", risk.upper() + "-RISK ZONE")
+
+print("\nQuarantine Recommendations:")
+
+if risk == "Low":
+    recommendations = [
+        "Monitor crops regularly.",
+        "Maintain proper field hygiene.",
+        "Use healthy planting materials."
+    ]
+
+elif risk == "Medium":
+    recommendations = [
+        "Inspect affected plants regularly.",
+        "Avoid transferring suspected infected materials.",
+        "Clean agricultural tools.",
+        "Consult an agricultural expert."
+    ]
+
+else:
+    recommendations = [
+        "Immediately isolate affected farms.",
+        "Restrict movement of infected materials.",
+        "Inform agricultural authorities.",
+        "Follow expert-recommended disease control."
+    ]
+
+for i, item in enumerate(recommendations, 1):
+    print(f"{i}. {item}")
+
+print("\n" + "=" * 55)
+print("              ANALYSIS COMPLETED")
+print("=" * 55)
+
+print("\nGRAPH NETWORK ANALYSIS")
+
+if farms:
+    print("BFS Traversal:", system.bfs(farms[0]))
+
+    dfs_result = []
+    system.dfs(farms[0], set(), dfs_result)
+    print("DFS Traversal:", dfs_result)
+
+print("\nConnected Quarantine Zones:")
+
+for i, zone in enumerate(zones, 1):
+    print("Zone", i, ":", zone)
+
+print("\nCritical Farms (Articulation Points):")
+print(critical if critical else "No critical farms found")
+
+print("\nBiconnected Components:")
+
+for i, component in enumerate(bcc, 1):
+    print("Component", i, ":", component)
+
+print("\nCritical Farm Ranking:")
+
+for farm, impact in system.critical_ranking():
+    print(farm, "-> Impact:", impact)
+
+print("\nSAMPLE RISK ZONING TABLE")
+print("-" * 65)
+print(f"{'Agricultural Area':<22}{'Disease Reports':<28}{'Risk Zone'}")
+print("-" * 65)
+
+print(f"{location:<22}{disease:<28}{risk + ' Risk'}")
+
+print("\n11. CONCLUSION")
+print(
+    "The Crop Disease Detection and Quarantine System "
+    "uses graph algorithms to identify connected farms, "
+    "critical farms and quarantine zones. It helps in "
+    "planning disease control and protecting crops."
+)
+
+print("\nANALYSIS SUCCESSFULLY COMPLETED")
